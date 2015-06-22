@@ -22,7 +22,7 @@ def get_fitness(o, si, s, ca, fe, co, ni, mg, ti, cr, c,
     mdl = run_tardis(conf_dict)
     fn = SimpleRMSFitnessFunction('spectrum.dat')
     value, _ = fn(mdl)
-    return value
+    return -0.5 * value
 
 if __name__ == '__main__':
     print get_fitness(0.001574, 0.575, 0.115, 0.013333, 0.02, 0.023609, 0.03208, 0.2, 0.00016, 0.0008, 0.0005, 1.3265352399286673e+43, 10050.0)
