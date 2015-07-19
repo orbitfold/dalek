@@ -21,6 +21,52 @@ class BaseFitnessFunction(object):
         """
 
 
+def w_histogram(nus, luminosities, frequencies):
+    """
+    Arguments:
+    ----------
+    nus --- a numpy array of nus
+    luminosities --- a numpy array of luminosities
+    frequencies --- a numpy array of frequencies
+
+    Return:
+    -------
+    A two member list of bins containing nus and luminosities.
+    """
+    frequencies = sorted(frequencies)
+    nu_bins = [[] * (len(bins) - 1)]
+    luminosity_bins = [[] * (len(bins) - 1)]
+    for index, _ in enumerate(frequencies[:-1]):
+        for nu, luminosity in zip(nus, luminosity):
+            if nu >= frequencies[index] and nu < frequencies[index + 1]:
+                nu_bins[index].append(nu)
+                luminosity_bins[index].append(luminosity)
+    return nu_bins, luminosity_bins
+
+
+def loglikelihood(nus1, luminosities1, nus2, luminosities2, bins):
+    """
+    Arguments:
+    ----------
+    nus1 --- nus of spectrum nr. 1
+    luminosities1 --- luminosities of spectrum nr. 1
+    nus2 --- nus of spectrum nr. 2
+    luminosities2 --- luminosities of spectrum nr. 2
+    bins --- bin boundaries
+
+    Return:
+    -------
+    Similarity measure of two spectra
+    """
+    hist1 = w_histogram(nus1, luminosities1, bins)
+    hist2 = w_histogram(nus2, luminosities2, bins)
+    sums1 = np.array([sum(bin_) for bin_ in hist1[0]])
+    sums2 = np.array([sum(bin_) for bin_ in hist2[0]])
+    stds1 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist1[1]])
+    stds2 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist2[1]])
+    return ((sums1 - sums2) ** 2 / (stds1 ** 2 + stds2 ** 2)).sum()
+
+
 class SimpleRMSFitnessFunction(BaseFitnessFunction):
 
     def __init__(self, spectrum):
