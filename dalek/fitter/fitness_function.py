@@ -34,13 +34,15 @@ def w_histogram(nus, luminosities, frequencies):
     A two member list of bins containing nus and luminosities.
     """
     frequencies = sorted(frequencies)
-    nu_bins = [[] * (len(bins) - 1)]
-    luminosity_bins = [[] * (len(bins) - 1)]
+    nu_bins = [[]] * (len(frequencies) - 1)
+    luminosity_bins = [[]] * (len(frequencies) - 1)
     for index, _ in enumerate(frequencies[:-1]):
-        for nu, luminosity in zip(nus, luminosity):
+        for nu, luminosity in zip(nus, luminosities):
             if nu >= frequencies[index] and nu < frequencies[index + 1]:
                 nu_bins[index].append(nu)
                 luminosity_bins[index].append(luminosity)
+    nu_bins = [nu for nu in nu_bins if len(nu) >= 5]
+    luminosity_bins = [luminosity for luminosity in luminosity_bins if len(luminosity) >= 5]
     return nu_bins, luminosity_bins
 
 
@@ -52,12 +54,17 @@ def loglikelihood(nus1, luminosities1, nus2, luminosities2, bins):
     luminosities1 --- luminosities of spectrum nr. 1
     nus2 --- nus of spectrum nr. 2
     luminosities2 --- luminosities of spectrum nr. 2
-    bins --- bin boundaries
+    bins --- bin boundaries or number of bins
 
     Return:
     -------
     Similarity measure of two spectra
     """
+    if type(bins) == type(1):
+        a = min(nus1)
+        b = max(nus1)
+        bins_ = [a + (b - a) / float(bins) * i for i in range(bins + 1)]
+        bins = bins_
     hist1 = w_histogram(nus1, luminosities1, bins)
     hist2 = w_histogram(nus2, luminosities2, bins)
     sums1 = np.array([sum(bin_) for bin_ in hist1[0]])
