@@ -105,5 +105,29 @@ class SimpleRMSFitnessFunction(BaseFitnessFunction):
 
         return fitness, synth_spectrum
 
+class LogLikelihoodFitnessFunction(BaseFitnessFunction):
+    def __init__(self, spectrum):
+        if hasattr(spectrum, '.flux'):
+            self.observed_spectrum = spectrum
+        else:
+            wave, flux = np.loadtxt(spectrum, unpack=True)
+            self.observed_spectrum = Spectrum1D.from_array(wave * u.angstrom,
+                                                           flux * u.erg / u.s /
+                                                           u.cm**2 / u.Angstrom)
+        self.observed_spectrum_wavelength = self.observed_spectrum.wavelength.value
+        self.observed_spectrum_flux = self.observed_spectrum.flux.value
+
+    def __call__(self, radial1d_mdl):
+        if radial1d_mdl.spectrum_virtual.flux_nu.sum() > 0:
+            synth_spectrum = radial1d_mdl.spectrum_virtual
+        else:
+            synth_spectrum = radial1d_mdl.spectrum
+        fitness = loglikelihood(self.observed_spectrum_wavelength, 
+                                self.observed_spectrum_flux,
+                                synth_spectrum.wavelength.value[::-1], 
+                                synth_spectrum.flux_lambda.value[::-1],
+                                self.observed_spectrum_wavelength)
+        return fitness, synth_spectrum
+
 
 fitness_function_dict = {'simple_rms': SimpleRMSFitnessFunction}

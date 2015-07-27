@@ -101,16 +101,16 @@ class LuusJaakolaOptimizer(BaseOptimizer):
         return new_parameter_collection
 
 class DEOptimizer(BaseOptimizer):
-    def __init__(self, parameter_conf, number_of_samples, **kwargs):
+    def __init__(self, parameter_conf, population_size):
         self.population = None
         self.fitness = None
         self.parameter_config = parameter_conf
         self.dim = len(self.parameter_config.parameter_names)
-        self.cr = kwargs.get('cr', 0.9)
-        self.f = kwargs.get('f', 0.5)
-        if number_of_samples < 4:
+        self.cr = 0.9
+        self.f = 0.5
+        if population_size < 4:
             raise ValueError('Need at least 4 samples for differential evolution')
-        self.n = number_of_samples
+        self.n = population_size
 
         self.lbounds = np.array(self.parameter_config.lbounds)
         self.ubounds = np.array(self.parameter_config.ubounds)
