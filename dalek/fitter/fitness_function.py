@@ -34,15 +34,13 @@ def w_histogram(nus, luminosities, frequencies):
     A two member list of bins containing nus and luminosities.
     """
     frequencies = sorted(frequencies)
-    nu_bins = [[]] * (len(frequencies) - 1)
-    luminosity_bins = [[]] * (len(frequencies) - 1)
+    nu_bins = [[] for _ in range(len(frequencies) - 1)]
+    luminosity_bins = [[] for _ in range(len(frequencies) - 1)]
     for index, _ in enumerate(frequencies[:-1]):
         for nu, luminosity in zip(nus, luminosities):
             if nu >= frequencies[index] and nu < frequencies[index + 1]:
                 nu_bins[index].append(nu)
                 luminosity_bins[index].append(luminosity)
-    nu_bins = [nu for nu in nu_bins if len(nu) >= 5]
-    luminosity_bins = [luminosity for luminosity in luminosity_bins if len(luminosity) >= 5]
     return nu_bins, luminosity_bins
 
 
@@ -71,7 +69,7 @@ def loglikelihood(nus1, luminosities1, nus2, luminosities2, bins):
     sums2 = np.array([sum(bin_) for bin_ in hist2[0]])
     stds1 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist1[1]])
     stds2 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist2[1]])
-    return ((sums1 - sums2) ** 2 / (stds1 ** 2 + stds2 ** 2)).sum()
+    return (((sums1 - sums2) ** 2 / (stds1 ** 2 + stds2 ** 2))[len(bin_) >= 5 for bin_ in hist2[0]]).sum()
 
 
 class SimpleRMSFitnessFunction(BaseFitnessFunction):
