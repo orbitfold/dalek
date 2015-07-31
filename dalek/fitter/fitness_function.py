@@ -69,7 +69,8 @@ def loglikelihood(nus1, luminosities1, nus2, luminosities2, bins):
     sums2 = np.array([sum(bin_) for bin_ in hist2[0]])
     stds1 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist1[1]])
     stds2 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist2[1]])
-    return (((sums1 - sums2) ** 2 / (stds1 ** 2 + stds2 ** 2))[len(bin_) >= 5 for bin_ in hist2[0]]).sum()
+    mask = [len(bin_) >= 5 for bin_ in hist2[0]]
+    return (((sums1 - sums2) ** 2 / (stds1 ** 2 + stds2 ** 2))[mask]).sum() / mask.sum()
 
 
 class SimpleRMSFitnessFunction(BaseFitnessFunction):
