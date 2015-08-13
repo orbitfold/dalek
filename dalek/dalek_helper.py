@@ -1,8 +1,20 @@
 from tardis import run_tardis
-from scipy import 
 from scipy.stats import gamma
+import numpy as np
 from dalek.fitter.fitness_function import LogLikelihoodFitnessFunction, SimpleRMSFitnessFunction
 import yaml
+from tardis.stats.base import get_trivial_poisson_uncertainty
+
+def loglikelihood(mdl, observed_v_ld_filename, observed_unc_filename, mask_filename):
+    observed_v_ld = np.load(observed_v_ld_filename)
+    observed_unc = np.load(observed_unc_filename)
+    mask = np.load(mask_filename)
+    synth_v_ld = mdl.spectrum_virtual.luminosity_density_nu.value
+    synth_unc = get_trivial_poisson_uncertainty(mdl).value
+    uncs = (observed_unc[mask] / 5.0) ** 2 + (synth_unc[mask] / 5.0) ** 2
+    term1 = ((observed_v_ld[mask] - synth_v_ld[mask]) ** 2 / uncs).sum()
+    term2 = np.log(np.sqrt(uncs)).sum()
+    return -0.5 * term1 - term2
 
 def get_fitness(o, si, s, ca, fe, co, ni, mg, ti, cr, c, 
                 luminosity_requested, velocity_start):
@@ -10,7 +22,7 @@ def get_fitness(o, si, s, ca, fe, co, ni, mg, ti, cr, c,
     velocity_start = 7000.0 + (15000.0 - 7000.0) * velocity_start
     arr = np.array([o, si, s, ca, fe, co, ni, mg, ti, cr, c])
     o, si, s, ca, fe, co, ni, mg, ti, cr, c = gamma.pdf(arr, 1, scale=1, loc=0) / arr.sum()
-    with open('tardis_02bo_kurucz.yml', 'r') as fd:
+    with open('/home/hpc/pr94se/di73kuj/optimization/PolyChord/tardis_02bo_kurucz.yml', 'r') as fd:
         conf_dict = yaml.load(fd)
     conf_dict['model']['abundances']['O'] = o
     conf_dict['model']['abundances']['Si'] = si
@@ -26,9 +38,11 @@ def get_fitness(o, si, s, ca, fe, co, ni, mg, ti, cr, c,
     conf_dict['supernova']['luminosity_requested'] = "%f erg/s" % luminosity_requested
     conf_dict['model']['structure']['velocity']['start'] = "%f km/s" % velocity_start
     mdl = run_tardis(conf_dict)
-    fn = LogLikelihoodFitnessFunction('spectrum.dat')
-    value, _ = fn(mdl)
-    return -0.5 * value
+    value = loglikelihood(
+        mdl, '/home/hpc/pr94se/di73kuj/optimization/PolyChord/observed_v_ld.npy',
+        '/home/hpc/pr94se/di73kuj/optimization/PolyChord/observed_unc.npy',
+        '/home/hpc/pr94se/di73kuj/optimization/PolyChord/mask.npy')
+    return value
 
 if __name__ == '__main__':
-    print get_fitness(0.001574, 0.575, 0.115, 0.013333, 0.02, 0.023609, 0.03208, 0.2, 0.00016, 0.0008, 0.0005, 1.3265352399286673e+43, 10050.0)
+    print get_fitness(0.001574, 0.575, 0.115, 0.013333, 0.02, 0.023609, 0.03208, 0.2, 0.00016, 0.0008, 0.0005, 0.5, 0.5)

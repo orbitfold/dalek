@@ -20,59 +20,6 @@ class BaseFitnessFunction(object):
         :return:
         """
 
-
-def w_histogram(nus, luminosities, frequencies):
-    """
-    Arguments:
-    ----------
-    nus --- a numpy array of nus
-    luminosities --- a numpy array of luminosities
-    frequencies --- a numpy array of frequencies
-
-    Return:
-    -------
-    A two member list of bins containing nus and luminosities.
-    """
-    frequencies = sorted(frequencies)
-    nu_bins = [[] for _ in range(len(frequencies) - 1)]
-    luminosity_bins = [[] for _ in range(len(frequencies) - 1)]
-    for index, _ in enumerate(frequencies[:-1]):
-        for nu, luminosity in zip(nus, luminosities):
-            if nu >= frequencies[index] and nu < frequencies[index + 1]:
-                nu_bins[index].append(nu)
-                luminosity_bins[index].append(luminosity)
-    return nu_bins, luminosity_bins
-
-
-def loglikelihood(nus1, luminosities1, nus2, luminosities2, bins):
-    """
-    Arguments:
-    ----------
-    nus1 --- nus of spectrum nr. 1
-    luminosities1 --- luminosities of spectrum nr. 1
-    nus2 --- nus of spectrum nr. 2
-    luminosities2 --- luminosities of spectrum nr. 2
-    bins --- bin boundaries or number of bins
-
-    Return:
-    -------
-    Similarity measure of two spectra
-    """
-    if type(bins) == type(1):
-        a = min(nus1)
-        b = max(nus1)
-        bins_ = [a + (b - a) / float(bins) * i for i in range(bins + 1)]
-        bins = bins_
-    hist1 = w_histogram(nus1, luminosities1, bins)
-    hist2 = w_histogram(nus2, luminosities2, bins)
-    sums1 = np.array([sum(bin_) for bin_ in hist1[0]])
-    sums2 = np.array([sum(bin_) for bin_ in hist2[0]])
-    stds1 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist1[1]])
-    stds2 = np.array([np.sqrt(np.var(np.array(bin_)) * len(bin_)) for bin_ in hist2[1]])
-    mask = [len(bin_) >= 5 for bin_ in hist2[0]]
-    return (((sums1 - sums2) ** 2 / (stds1 ** 2 + stds2 ** 2))[mask]).sum() / mask.sum()
-
-
 class SimpleRMSFitnessFunction(BaseFitnessFunction):
 
     def __init__(self, spectrum):
@@ -105,28 +52,35 @@ class SimpleRMSFitnessFunction(BaseFitnessFunction):
         return fitness, synth_spectrum
 
 class LogLikelihoodFitnessFunction(BaseFitnessFunction):
-    def __init__(self, spectrum):
-        if hasattr(spectrum, '.flux'):
-            self.observed_spectrum = spectrum
-        else:
-            wave, flux = np.loadtxt(spectrum, unpack=True)
-            self.observed_spectrum = Spectrum1D.from_array(wave * u.angstrom,
-                                                           flux * u.erg / u.s /
-                                                           u.cm**2 / u.Angstrom)
-        self.observed_spectrum_wavelength = self.observed_spectrum.wavelength.value
-        self.observed_spectrum_flux = self.observed_spectrum.flux.value
+    def __init__(self, observed_v_ld_filename, observed_unc_filename, mask_filename):
+        """
+        Parameters:
+        -----------
+        observed_v_ld_filename -- filename of a file containing observed luminosity density
+        observed_unc_filename -- filename of a file containing observed uncertainty
+        mask_filename -- filename of a file containing the mask for bins with more than 10 elts
 
-    def __call__(self, radial1d_mdl):
-        if radial1d_mdl.spectrum_virtual.flux_nu.sum() > 0:
-            synth_spectrum = radial1d_mdl.spectrum_virtual
-        else:
-            synth_spectrum = radial1d_mdl.spectrum
-        fitness = loglikelihood(self.observed_spectrum_wavelength, 
-                                self.observed_spectrum_flux,
-                                synth_spectrum.wavelength.value[::-1], 
-                                synth_spectrum.flux_lambda.value[::-1],
-                                self.observed_spectrum_wavelength)
-        return fitness, synth_spectrum
+        All files must be loadable with np.load and the arrays must be of the same dimensionality.
+
+        Return:
+        -------
+        loglikelihood
+        """
+        self.observed_v_ld = np.load(observed_v_ld_filename)
+        self.observed_unc = np.load(observed_unc_filename)
+        self.mask = np.load(mask_filename)
+
+    def loglikelihood(mdl):
+        synth_v_ld = mdl.spectrum_virtual.luminosity_density_nu.value
+        synth_unc = get_trivial_poisson_uncertainty(mdl).value
+        uncs = (self.observed_unc[self.mask] / 5.0) ** 2 + (synth_unc[self.mask] / 5.0) ** 2
+        term1 = ((self.observed_v_ld[self.mask] - synth_v_ld[self.mask]) ** 2 / uncs).sum()
+        term2 = np.log(np.sqrt(uncs)).sum()
+        return -0.5 * term1 - term2
+    
+    def __call__(self, mdl):
+        fitness = loglikelihood(mdl)
+        return fitness, mdl.spectrum_virtual
 
 
 fitness_function_dict = {'simple_rms': SimpleRMSFitnessFunction}
